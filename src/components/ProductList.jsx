@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Modal } from 'bootstrap';
 import axios from 'axios';
 import ProductModal from './ProductModal';
+import Pagination from './Pagination';
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 const API_PATH = import.meta.env.VITE_API_PATH;
@@ -25,6 +26,7 @@ function ProductList() {
   const [isProductsLoading, setIsProductsLoading] = useState(true);
   const [tempProduct, setTempProduct] = useState(INITIAL_TEMPLATE_DATA);
   const [modalType, setModalType] = useState(""); // "create", "edit", "delete"
+  const [pagination, setPagination] = useState({});
   const modalRef = useRef(null);
   const bsModalRef = useRef(null);
 
@@ -32,8 +34,6 @@ function ProductList() {
     bsModalRef.current = new Modal(modalRef.current);
 
     modalRef.current.addEventListener('hidden.bs.modal', () => {
-      setTempProduct(INITIAL_TEMPLATE_DATA);
-
       // Bootstrap Modal 關閉時不會主動處理焦點
       // 在 React 專案中，Modal 內的元素可能立刻被卸載
       // 如果焦點還留在裡面，會造成無障礙錯誤
@@ -55,10 +55,11 @@ function ProductList() {
     })();
   }, []);
 
-  async function getProducts() {
+  async function getProducts(page = 1) {
     try {
-      const response = await axios.get(`${API_BASE}/api/${API_PATH}/admin/products`);
+      const response = await axios.get(`${API_BASE}/api/${API_PATH}/admin/products?page=${page}`);
       setProducts(response.data.products);
+      setPagination(response.data.pagination);
     } catch (error) {
       console.error(error);
     }
@@ -72,69 +73,30 @@ function ProductList() {
     bsModalRef.current.hide();
   }
 
-  function handleCreateProduct() {
-    setTempProduct(INITIAL_TEMPLATE_DATA);
+  function openCreateModal() {
+    setTempProduct({...INITIAL_TEMPLATE_DATA}); // 傳入新的物件以確保重新渲染
     setModalType("create");
     openModal();
   }
   
-  function handleEditProduct(product) {
+  function openEditModal(product) {
     setTempProduct(product);
     setModalType("edit");
     openModal();
   }
 
-  function handleDeleteProduct(product) {
+  function openDeleteModal(product) {
     setTempProduct(product);
     setModalType("delete");
     openModal();
   }
 
   // Modal 內的事件開始
-  function handleModalInputChange(e) {
-    const { name, value, type } = e.target;
-    setTempProduct({
-      ...tempProduct,
-      [name]: type === 'checkbox' ? e.target.checked :
-              type === 'number' ? Number(value) : value,
-    });
-  }
-
-  function handleModalSubImageChange(index, value) {
-    const newImagesUrl = [...tempProduct.imagesUrl];
-    newImagesUrl[index] = value;
-    setTempProduct({
-      ...tempProduct,
-      imagesUrl: newImagesUrl,
-    });
-  }
-
-  function handleAddSubImage() {
-    if (tempProduct.imagesUrl && tempProduct.imagesUrl[tempProduct.imagesUrl.length - 1] === "") {
-      return;
-    }
-    const newImagesUrl = tempProduct.imagesUrl ? [...tempProduct.imagesUrl] : [];
-    newImagesUrl.push("");
-    setTempProduct({
-      ...tempProduct,
-      imagesUrl: newImagesUrl,
-    });
-  }
-
-  function handleDeleteSubImage(index) {
-    const newImagesUrl = [...tempProduct.imagesUrl];
-    newImagesUrl.splice(index, 1);
-    setTempProduct({
-      ...tempProduct,
-      imagesUrl: newImagesUrl,
-    });
-  }
-
-  async function handleModalSave() {
-    // 清空 tempProduct.imagesUrl 裡的空字串
-    const newImagesUrl = tempProduct.imagesUrl?.filter((url) => url !== "") || [];
+  async function handleModalSave(product) {
+    // 清空 product.imagesUrl 裡的空字串
+    const newImagesUrl = product.imagesUrl?.filter((url) => url !== "") || [];
     const savingProduct = {
-      ...tempProduct,
+      ...product,
       imagesUrl: newImagesUrl,
     };
     const savingData = {
@@ -194,9 +156,9 @@ function ProductList() {
           <div className="col-12">
             <h2>產品列表</h2>
             <div className="text-end mb-4">
-              <button type="button" className="btn btn-primary" onClick={handleCreateProduct}>建立新的產品</button>
+              <button type="button" className="btn btn-primary" onClick={openCreateModal}>建立新的產品</button>
             </div>
-            <table className="table">
+            <table className="table mb-4">
               <thead>
                 <tr>
                   <th width="120">分類</th>
@@ -226,11 +188,11 @@ function ProductList() {
                       <td>
                         <div className="btn-group">
                           <button type="button" className="btn btn-outline-primary btn-sm"
-                            onClick={() => handleEditProduct(product)}>
+                            onClick={() => openEditModal(product)}>
                             編輯
                           </button>
                           <button type="button" className="btn btn-outline-danger btn-sm"
-                            onClick={() => handleDeleteProduct(product)}>
+                            onClick={() => openDeleteModal(product)}>
                             刪除
                           </button>
                         </div>
@@ -244,16 +206,13 @@ function ProductList() {
                 )}
               </tbody>
             </table>
+            <Pagination pagination={pagination} onPageChange={getProducts} />
           </div>
         </div>
       </div>
       <ProductModal ref={modalRef}
         type={modalType}
-        product={tempProduct}
-        onChange={handleModalInputChange}
-        onSubImageChange={handleModalSubImageChange}
-        onAddSubImage={handleAddSubImage}
-        onDeleteSubImage={handleDeleteSubImage}
+        currentProduct={tempProduct}
         onSave={handleModalSave}
         onDeleteConfirm={handleDeleteConfirm}
        />

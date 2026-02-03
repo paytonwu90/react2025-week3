@@ -1,12 +1,8 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
+import axios from 'axios';
 import { setCookieToken } from './utils/cookie';
 import useAuth from './hooks/useAuth';
 import LoginForm from './components/LoginForm'
 import ProductList from './components/ProductList'
-
-const API_BASE = import.meta.env.VITE_API_BASE;
-const API_PATH = import.meta.env.VITE_API_PATH;
 
 function App() {
   const { isAuth, isAuthLoading, setIsAuth } = useAuth();
